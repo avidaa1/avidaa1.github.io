@@ -94,6 +94,12 @@ body.panel-sheet #vida,body.panel-sheet #brainbox{opacity:0;pointer-events:none}
 #pl li[aria-selected="true"],#pl a.row:focus{background:rgba(124,92,255,.35)}
 #pl .nm{font-weight:900;font-size:1.05rem}
 #pl .ds{color:var(--muted);font-size:.9rem;margin-left:auto;text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#psec{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px;border-bottom:1px solid var(--line)}
+#psec button{min-height:44px;padding:0 14px;border-radius:999px;border:1.5px solid var(--line);background:rgba(255,255,255,.05);color:var(--fg);font:800 .9rem var(--font);cursor:pointer}
+#psec button[aria-pressed="true"]{background:linear-gradient(135deg,#7C5CFF,#FF5FA2);border-color:transparent}
+#pl a.row.sub{padding-left:38px;min-height:48px}
+#pl a.row.grp{background:rgba(255,255,255,.04)}
+#pl mark{background:rgba(255,217,61,.35);color:inherit;border-radius:4px;padding:0 1px}
 .phint{padding:10px 18px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line)}
 /* card view */
 #cardview{position:absolute;inset:0;z-index:2;overflow-y:auto;padding:calc(var(--top) + 16px) 14px 40px;display:none}
@@ -238,8 +244,9 @@ body:not(.cards) #cardview{display:none}
 <div id="pal" role="dialog" aria-modal="true" aria-label="Jump to a page">
   <div class="pbox">
     <div class="phead"><input id="pq" type="text" role="combobox" aria-expanded="true" aria-controls="pl" autocomplete="off" spellcheck="false" placeholder="Jump to any page..."><button id="pclose" class="pclose" type="button" aria-label="Close search">Close</button></div>
+    <div id="psec" role="group" aria-label="Filter by sector"></div>
     <ul id="pl" role="listbox"></ul>
-    <div class="phint">Type to filter. Up and Down or the D-pad choose, OK or Enter opens. The search stays open until you press Close, Esc or Back.</div>
+    <div class="phint">Type to search pages, sections, tools and games (typos are fine). Up and Down or the D-pad choose, OK or Enter opens the page at that section. The search stays open until you press Close, Esc or Back.</div>
   </div>
 </div>
 
@@ -963,13 +970,13 @@ window.__tap={Z:Z,r:TAPR,mode:tapMode};
 var pal=$('pal'),pq=$('pq'),pl=$('pl'),pclose=$('pclose'),psel=0,items=[],lastFocus=null,palHist=false;
 function palOpen(){return pal.classList.contains('show');}
 function rows(){return [].slice.call(pl.querySelectorAll('a.row'));}
-function openPal(){if(palOpen()){pq.focus();return;}lastFocus=document.activeElement;pal.classList.add('show');pq.value='';fill('');pq.focus();
+function openPal(q0){if(palOpen()){pq.focus();return;}lastFocus=document.activeElement;pal.classList.add('show');pq.value=typeof q0==='string'?q0:'';fill(pq.value);pq.focus();loadIndex(function(){buildChips();fill(pq.value);});
   try{history.pushState({avpal:1},'');palHist=true;}catch(e){palHist=false;}}
 function closePal(fromPop){if(!palOpen())return;pal.classList.remove('show');
   if(palHist&&!fromPop){palHist=false;try{history.back();}catch(e){}}else palHist=false;
   if(lastFocus&&lastFocus.focus)lastFocus.focus();}
 function setSel(i){psel=i;[].forEach.call(pl.children,function(li,k){li.setAttribute('aria-selected',k===i?'true':'false');});}
-function fill(q){
+function fillPages(q){
   q=q.trim().toLowerCase();
   items=order.map(function(p){var hay=(p.name+' '+p.desc+' '+SEC[p.sector].name).toLowerCase(),s=hay.indexOf(q);return {p:p,s:q?(p.name.toLowerCase().indexOf(q)===0?0:p.name.toLowerCase().indexOf(q)>=0?1:s>=0?2:9):1};}).filter(function(x){return x.s<9;}).sort(function(a,b){return a.s-b.s||(a.p.status==='live'?0:1)-(b.p.status==='live'?0:1)||a.p.name.localeCompare(b.p.name);}).slice(0,40);
   psel=0;pl.innerHTML='';
@@ -980,6 +987,77 @@ function fill(q){
     a.addEventListener('mouseenter',function(){setSel(i);});a.addEventListener('focus',function(){setSel(i);});
     pl.appendChild(li);});
   if(!items.length){var e=document.createElement('li');e.className='none';e.setAttribute('role','option');e.setAttribute('aria-selected','false');e.textContent='No page matches';pl.appendChild(e);}
+}
+
+/* ---------- site search: offline index (search-index.json, same origin), typo tolerant, grouped by page, sector filter ---------- */
+var IDX=null,IDXTRY=false,secFilter='';
+function norm(t){return String(t||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'');}
+function wordsOf(t){return norm(t).split(/[^a-z0-9]+/).filter(Boolean);}
+function dl(a,b,max){
+  if(Math.abs(a.length-b.length)>max)return max+1;
+  var al=a.length,bl=b.length,d=[],i,j;
+  for(i=0;i<=al;i++)d[i]=[i];for(j=1;j<=bl;j++)d[0][j]=j;
+  for(i=1;i<=al;i++)for(j=1;j<=bl;j++){var c=a[i-1]===b[j-1]?0:1;d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+c);if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1])d[i][j]=Math.min(d[i][j],d[i-2][j-2]+1);}
+  return d[al][bl];}
+function tokScore(tok,ws){
+  var best=0;
+  for(var k=0;k<ws.length;k++){var w=ws[k],sc=0;
+    if(w===tok)sc=10;else if(w.indexOf(tok)===0)sc=8;else if(tok.length>=3&&w.indexOf(tok)>0)sc=5;
+    else if(tok.length>=4){var m=tok.length>=8?2:1,x=dl(tok,w.slice(0,tok.length+1),m);if(x<=m)sc=4-(x-1)*0.5;else{x=dl(tok,w,m);if(x<=m)sc=3.5-(x-1)*0.5;}}
+    if(sc>best)best=sc;}
+  return best;}
+function loadIndex(cb){
+  if(IDX||IDXTRY){cb&&cb();return;}IDXTRY=true;
+  try{fetch('search-index.json',{cache:'force-cache'}).then(function(r){return r.ok?r.json():null;}).then(function(j){
+    if(j&&j.pages&&j.e&&j.sectors){j.e.forEach(function(e){e.tw=wordsOf(e[2]);e.sw=wordsOf(e[3]);});j.pages.forEach(function(p){p.nw=wordsOf(p.n);});IDX=j;buildChips();}
+    cb&&cb();}).catch(function(){cb&&cb();});}catch(e){cb&&cb();}
+}
+function buildChips(){
+  var box=document.getElementById('psec');if(!box||!IDX)return;box.textContent='';
+  var all=[['','All']].concat(IDX.sectors.map(function(s){return [s.id,s.n];}));
+  all.forEach(function(a){var b=document.createElement('button');b.type='button';b.textContent=a[1];b.setAttribute('aria-pressed',a[0]===secFilter?'true':'false');
+    b.onclick=function(){secFilter=a[0];buildChips();fill(pq.value);pq.focus();};box.appendChild(b);});
+}
+function secIndex(){if(!IDX||!secFilter)return -1;for(var i=0;i<IDX.sectors.length;i++)if(IDX.sectors[i].id===secFilter)return i;return -1;}
+function dlink(p,e){return p.u+(e[4]?'#'+e[4]:(e[1]==='page'?'':'#find='+encodeURIComponent(e[2])));}
+function hl(el,text,toks){
+  var low=norm(text),hits=[];toks.forEach(function(t){var i=low.indexOf(t);if(i>=0)hits.push([i,i+t.length]);});
+  if(!hits.length){el.textContent=text;return;}
+  hits.sort(function(a,b){return a[0]-b[0];});var pos=0;
+  hits.forEach(function(h){if(h[0]<pos)return;el.appendChild(document.createTextNode(text.slice(pos,h[0])));var m=document.createElement('mark');m.textContent=text.slice(h[0],h[1]);el.appendChild(m);pos=h[1];});
+  el.appendChild(document.createTextNode(text.slice(pos)));
+}
+function searchIndex(q){
+  var toks=wordsOf(q);if(!toks.length)return null;
+  var si=secIndex(),groups={};
+  IDX.e.forEach(function(e){
+    var p=IDX.pages[e[0]];if(si>=0&&p.s!==si)return;
+    var sum=0,miss=0;
+    toks.forEach(function(t){var a=tokScore(t,e.tw)*3,b=tokScore(t,e.sw),c=tokScore(t,p.nw)*1.5,m=Math.max(a,b,c);if(m<=0)miss++;else sum+=m;});
+    if(miss>0&&!(toks.length>=3&&miss===1))return;
+    var score=sum-miss*4+(e[1]==='page'?2:e[1]==='section'?1:0);
+    var g=groups[e[0]]||(groups[e[0]]={p:p,best:0,list:[]});g.list.push([score,e]);if(score>g.best)g.best=score;
+  });
+  var out=Object.keys(groups).map(function(k){var g=groups[k];g.list.sort(function(a,b){return b[0]-a[0];});return g;}).sort(function(a,b){return b.best-a.best;}).slice(0,12);
+  return {groups:out,toks:toks};
+}
+function fill(q){
+  if(!IDX||!wordsOf(q).length){fillPages(q);if(IDX&&secFilter){var si=secIndex(),keep=[];items=items.filter(function(x){return true;});[].slice.call(pl.children).forEach(function(li){var a=li.querySelector('a.row');if(a&&si>=0){var pg=IDX.pages.filter(function(p){return p.u===a.href;})[0];if(pg&&pg.s!==si)li.remove();}});items=rows().map(function(a){return {p:{url:a.href}};});}return;}
+  var r=searchIndex(q);psel=0;pl.textContent='';items=[];
+  r.groups.forEach(function(g){
+    var li=document.createElement('li'),a=document.createElement('a'),n=document.createElement('span'),d=document.createElement('span');
+    li.setAttribute('role','option');li.setAttribute('aria-selected',items.length===0?'true':'false');
+    a.className='row grp';a.href=g.p.u;n.className='nm';n.textContent=g.p.n;d.className='ds';d.textContent=IDX.sectors[g.p.s].n;a.appendChild(n);a.appendChild(d);li.appendChild(a);pl.appendChild(li);
+    items.push({p:{url:g.p.u}});
+    g.list.filter(function(x){return x[1][1]!=='page';}).slice(0,3).forEach(function(x){
+      var e=x[1],l2=document.createElement('li'),a2=document.createElement('a'),n2=document.createElement('span'),d2=document.createElement('span');
+      l2.setAttribute('role','option');l2.setAttribute('aria-selected','false');a2.className='row sub';a2.href=dlink(g.p,e);
+      n2.className='nm';hl(n2,e[2],r.toks);d2.className='ds';d2.textContent=e[3];a2.appendChild(n2);a2.appendChild(d2);l2.appendChild(a2);pl.appendChild(l2);items.push({p:{url:a2.href}});
+      a2.addEventListener('mouseenter',function(){setSel(items.length?[].indexOf.call(pl.children,l2):0);});
+    });
+    a.addEventListener('mouseenter',function(){setSel([].indexOf.call(pl.children,li));});
+  });
+  if(!r.groups.length){var e=document.createElement('li');e.className='none';e.setAttribute('role','option');e.setAttribute('aria-selected','false');e.textContent='Nothing found. Try another word.';pl.appendChild(e);}
 }
 function focusRow(i){var r=rows();if(!r.length)return false;i=(i+r.length)%r.length;r[i].focus();if(r[i].scrollIntoView)r[i].scrollIntoView({block:'nearest'});return true;}
 function go(p){location.href=p.url;}
@@ -1003,12 +1081,13 @@ pclose.addEventListener('keydown',function(e){if(e.key==='ArrowLeft'){e.preventD
 /* a click on the dimmed backdrop never closes the search (a TV cursor can land there by accident); it just returns focus to the box */
 pal.addEventListener('click',function(e){if(e.target===pal)pq.focus();});
 /* focus trap: Tab and focus loss keep focus inside the dialog; nothing here closes it */
-pal.addEventListener('keydown',function(e){if(e.key!=='Tab')return;var f=[pq,pclose].concat(rows());var i=f.indexOf(document.activeElement);
+pal.addEventListener('keydown',function(e){if(e.key!=='Tab')return;var f=[pq,pclose].concat([].slice.call(document.querySelectorAll('#psec button')),rows());var i=f.indexOf(document.activeElement);
   if(e.shiftKey){if(i<=0){e.preventDefault();f[f.length-1].focus();}}else if(i===f.length-1){e.preventDefault();f[0].focus();}});
 document.addEventListener('focusin',function(e){if(palOpen()&&!pal.contains(e.target))pq.focus();});
 pal.addEventListener('focusout',function(e){if(e.relatedTarget)return;setTimeout(function(){if(palOpen()&&!pal.contains(document.activeElement)){if(!focusRow(psel))pq.focus();}},0);});
 window.addEventListener('popstate',function(){if(palOpen()){palHist=false;closePal(true);}});
-$('btn-search').onclick=openPal;
+$('btn-search').onclick=function(){openPal();};
+try{var qp=new URLSearchParams(location.search),q0=qp.get('q');if(qp.has('search')||q0!==null){setTimeout(function(){openPal(q0||'');},200);}}catch(e){}
 document.addEventListener('keydown',function(e){
   var k=e.key.toLowerCase();
   if((e.ctrlKey||e.metaKey)&&k==='k'){e.preventDefault();palOpen()?closePal():openPal();}
@@ -1103,7 +1182,7 @@ if(document.readyState==='complete')start();else addEventListener('load',start);
 addEventListener('resize',sched);})();</script><script id="av-shell-20261124">/* AVIDAA shell: shared header (or floating pill) + footer with the "Last updated" stamp. No outside calls, no tracking.
    Template tokens are replaced when a page is built: AVIDAA Constellation --av-knowledge Knowledge 2026-11-25 03:53 */
 (function(){
-  var NAME='AVIDAA Constellation',SECTOR='--av-knowledge',STAMP='2026-11-25 14:28',HOME='https://avidaa1.github.io/';
+  var NAME='AVIDAA Constellation',SECTOR='--av-knowledge',STAMP='2026-11-25 14:45',HOME='https://avidaa1.github.io/';
   var ARROW='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function build(){
     if(!document.body||document.querySelector('.av-footer'))return;
