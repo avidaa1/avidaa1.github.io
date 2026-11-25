@@ -1,0 +1,28 @@
+ASCII Vida mascot - archived 2026-11-25 (removed from index.html at the owner's request; kept here, not deleted)
+Origin: AVIDAA Constellation home page (avidaa1.github.io). Face + speech bubble greetings, incl. "Every star is a page."
+To restore: put the CSS in <style>, the HTML before <section id="cardview">, the setMode line back inside setMode(), and the JS before the download block.
+
+===== 1. CSS =====
+#vida{position:fixed;left:14px;bottom:14px;display:flex;align-items:flex-end;gap:10px;z-index:6;pointer-events:none}
+#vida pre{font:700 14px/1.15 var(--mono);color:#7ee3ff;text-shadow:0 0 8px rgba(91,192,255,.8);white-space:pre}
+#vida .say{max-width:230px;padding:8px 12px;border-radius:14px;background:rgba(91,192,255,.14);border:1px solid rgba(91,192,255,.55);font-weight:800;font-size:.95rem;line-height:1.3;margin-bottom:6px}
+body.cards #vida{position:static;margin:34px 0 0;pointer-events:auto}
+
+===== 2. HTML =====
+<div id="vida" aria-hidden="true"><pre id="face"></pre><div class="say" id="say"></div></div>
+
+===== 3. line inside setMode(m,save) =====
+  var v=$('vida');(m==='cards'?document.querySelector('#cardview .cwrap'):document.body).appendChild(v);
+
+===== 4. JS =====
+/* ---------- ASCII Vida ---------- */
+var face=$('face'),say=$('say'),eyes='(o)(o)',mouth='\\__/';
+var GREET=['Hi, I am Vida.','Every star is a page.','Press Ctrl+K to jump.','Hover a star to peek.','Welcome to AVIDAA.'],gi=0;
+function renderFace(){face.textContent=['  .-""""""-.  ',' /  '+eyes+'  \\ ','|    <__>    |',' \\   '+mouth+'   / ',"  '-.____.-'  "].join('\n');}
+function greet(){say.textContent=GREET[gi%GREET.length];gi++;if(reduced)return;mouth='\\oo/';renderFace();setTimeout(function(){mouth='\\__/';renderFace();},1400);}
+renderFace();say.textContent='Hi, I am Vida. Press Ctrl+K to jump to any page.';
+if(!reduced){
+  (function blink(){setTimeout(function(){eyes='(-)(-)';renderFace();setTimeout(function(){eyes='(o)(o)';renderFace();blink();},150);},2800+Math.random()*3200);})();
+  setTimeout(function(){greet();setInterval(function(){if(!document.hidden)greet();},7000);},1200);
+}
+
