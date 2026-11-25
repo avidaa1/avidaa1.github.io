@@ -61,10 +61,15 @@ button,a{font-family:inherit;color:inherit}
 #pal{position:fixed;inset:0;z-index:60;display:none;align-items:flex-start;justify-content:center;padding:12vh 12px 0;background:rgba(3,5,18,.72);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 #pal.show{display:flex}
 .pbox{width:min(620px,100%);border-radius:20px;background:#0B0F30;border:2px solid #7C5CFF;box-shadow:0 30px 80px rgba(0,0,0,.7);overflow:hidden}
-#pq{width:100%;min-height:58px;padding:0 20px;background:none;border:0;border-bottom:1px solid var(--line);color:var(--fg);font:800 1.15rem var(--font);outline:none}
+.phead{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding-right:10px}
+#pq{flex:1;min-width:0;min-height:58px;padding:0 20px;background:none;border:0;color:var(--fg);font:800 1.15rem var(--font);outline:none}
+.pclose{flex:none;min-width:44px;min-height:44px;padding:0 18px;border-radius:999px;border:2px solid var(--line);background:rgba(255,255,255,.1);color:var(--fg);font:800 .95rem var(--font);cursor:pointer}
+#pal input:focus,#pal button:focus,#pal a:focus{outline:3px solid #FFD93D;outline-offset:-3px}
 #pl{list-style:none;max-height:min(52vh,420px);overflow-y:auto}
-#pl li{display:flex;align-items:center;gap:12px;min-height:52px;padding:6px 18px;cursor:pointer}
-#pl li[aria-selected="true"]{background:rgba(124,92,255,.35)}
+#pl li{display:block;min-height:52px}
+#pl a.row{display:flex;align-items:center;gap:12px;min-height:52px;padding:6px 18px;color:inherit;text-decoration:none;cursor:pointer}
+#pl li.none{display:flex;align-items:center;gap:12px;padding:6px 18px;color:var(--muted)}
+#pl li[aria-selected="true"],#pl a.row:focus{background:rgba(124,92,255,.35)}
 #pl .nm{font-weight:900;font-size:1.05rem}
 #pl .ds{color:var(--muted);font-size:.9rem;margin-left:auto;text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .phint{padding:10px 18px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line)}
@@ -196,16 +201,16 @@ body:not(.cards) #cardview{display:none}
 
 <div id="pal" role="dialog" aria-modal="true" aria-label="Jump to a page">
   <div class="pbox">
-    <input id="pq" type="text" role="combobox" aria-expanded="true" aria-controls="pl" autocomplete="off" spellcheck="false" placeholder="Jump to any page...">
+    <div class="phead"><input id="pq" type="text" role="combobox" aria-expanded="true" aria-controls="pl" autocomplete="off" spellcheck="false" placeholder="Jump to any page..."><button id="pclose" class="pclose" type="button" aria-label="Close search">Close</button></div>
     <ul id="pl" role="listbox"></ul>
-    <div class="phint">Up and Down to choose, Enter to open, Esc to close</div>
+    <div class="phint">Type to filter. Up and Down or the D-pad choose, OK or Enter opens. The search stays open until you press Close, Esc or Back.</div>
   </div>
 </div>
 
 <script>
 (function(){
 'use strict';
-var SECTORS=[["aegis", "AEGIS and Security", "#FF4D6D", "Cryptography and protection", [0.12, 0.6]], ["knowledge", "Knowledge", "#5BC0FF", "Science, history, mind and power", [0.34, 0.36]], ["games", "Games and Worlds", "#B28DFF", "3D worlds and games", [0.74, 0.3]], ["kids", "Kids and Learning", "#FFD93D", "Play, language and focus", [0.84, 0.62]], ["music", "Music and Art", "#FF7AA8", "Songs, avatars and cover art", [0.6, 0.8]], ["tools", "Tools", "#4ADE80", "Hubs, tools and builders", [0.32, 0.8]], ["archive", "Archive", "#8892B0", "Offline or being repaired. Nothing removed.", [0.58, 0.54]]],PAGES=[["cypherlogs", "Cypherlogs", "aegis", "Cipher logs and cryptography notes.", "live"], ["ai", "AI Archive", "knowledge", "The complete AI intelligence reference.", "live"], ["anomaly", "Anomaly", "knowledge", "UAP archive: sourced timeline, science and sightings.", "live"], ["bitcoin", "Bitcoin", "knowledge", "Live Bitcoin intelligence and on-chain dashboard.", "live"], ["chemistry", "Chemistry", "knowledge", "Atoms, particles and molecules, interactive.", "live"], ["consciousness", "Consciousness", "knowledge", "Mind, perception and awareness explored.", "live"], ["corruption", "Corruption", "knowledge", "Documented global financial corruption.", "live"], ["dna", "DNA", "knowledge", "An interactive DNA helix laboratory.", "live"], ["global", "Global", "knowledge", "Who rules the world? Power, networks and money.", "live"], ["go", "Go", "knowledge", "The ancient game of Go and its intelligence.", "live"], ["io", "IO", "knowledge", "The signal beneath AVIDAA.", "live"], ["medic", "Medic", "knowledge", "A biology and medicine archive.", "live"], ["nexus", "Nexus", "knowledge", "A blueprint for living free after the old systems.", "live"], ["origins", "Origins", "knowledge", "The world record of human origins.", "live"], ["rabbit", "Rabbit", "knowledge", "A rabbit hole of deep dives, level by level.", "live"], ["seismic", "Seismic", "knowledge", "An earthquake and tsunami archive.", "live"], ["stoa", "Stoa", "knowledge", "Stoicism from the Painted Porch.", "live"], ["synapse", "Synapse", "knowledge", "Mind and mental science.", "live"], ["terra", "Terra", "knowledge", "A living library of Earth.", "live"], ["tortoise", "Tortoise", "knowledge", "The living archive of the tortoise.", "live"], ["wars", "Wars", "knowledge", "The archive of conflict.", "live"], ["watchlist", "Watchlist", "knowledge", "AI in fiction, catalogued.", "live"], ["mgs", "Metal Gear Intel", "knowledge", "The Metal Gear intelligence archive.", "live"], ["cosmos", "Cosmos", "knowledge", "An interactive solar system and sky dome.", "live"], ["earth", "Earth", "knowledge", "A global intelligence globe.", "live"], ["3dfights", "Fights", "games", "A boxing arena with real contact combat.", "live"], ["city", "City", "games", "Procedural residential districts in 3D.", "live"], ["metaverse", "Metaverse", "games", "A 3D world to explore with five modes.", "live"], ["openworld", "Open World", "games", "A big open world to walk through.", "live"], ["maze", "Maze", "games", "The paradox maze.", "live"], ["teen", "Teen Zone", "games", "Game night and AI lab for ages 15 and up.", "live"], ["kids", "Kids", "kids", "Galaxy Park: 165 games for children.", "live"], ["papiamentu", "Papiamentu", "kids", "Learn Papiamentu, a living Caribbean language.", "live"], ["focus", "Focus", "kids", "ADHD self-awareness and screening tools.", "live"], ["suno", "Suno", "music", "AVIDAA music on Suno.", "live"], ["anima", "Anima", "music", "Particle avatars: IO and Vida.", "live"], ["face", "Face", "music", "A living particle face.", "live"], ["therapy", "Therapy", "music", "Galactic therapy and cover art.", "live"], ["hub", "Hub", "tools", "The AVIDAA HUB: the human and AI knowledge hub.", "live"], ["tools", "Tools", "tools", "The Bench: everyday tools.", "live"], ["forge", "Forge", "tools", "Products and tools forged by AVIDAA.", "live"], ["entity", "Entity", "archive", "An AI entity avatar. It has a load error and is being repaired.", "fix"], ["cinema", "Cinema", "archive", "Not published right now. Repository kept.", "offline"], ["math", "Math", "archive", "Not published right now. Repository kept.", "offline"], ["registry", "Registry", "archive", "Not published right now. Repository kept.", "offline"], ["horizon", "Horizon", "archive", "Not published right now. Repository kept.", "offline"], ["zodiac", "Zodiac", "archive", "Not published right now. Repository kept.", "offline"], ["archive", "Archive Repo", "archive", "Not published right now. Repository kept.", "offline"], ["masterbook", "Masterbook", "archive", "Not published right now. Repository kept.", "offline"]],EDGES=[["hub", "tools"], ["hub", "forge"], ["tools", "forge"], ["tools", "focus"], ["hub", "io"], ["io", "suno"], ["kids", "teen"], ["kids", "papiamentu"], ["kids", "focus"], ["metaverse", "openworld"], ["metaverse", "city"], ["openworld", "city"], ["3dfights", "metaverse"], ["maze", "metaverse"], ["cosmos", "earth"], ["cosmos", "terra"], ["earth", "terra"], ["earth", "seismic"], ["seismic", "terra"], ["terra", "tortoise"], ["dna", "chemistry"], ["dna", "medic"], ["medic", "synapse"], ["synapse", "consciousness"], ["consciousness", "rabbit"], ["ai", "nexus"], ["ai", "consciousness"], ["nexus", "global"], ["global", "corruption"], ["corruption", "wars"], ["wars", "global"], ["anomaly", "origins"], ["origins", "go"], ["go", "tortoise"], ["stoa", "synapse"], ["mgs", "anomaly"], ["watchlist", "ai"], ["watchlist", "mgs"], ["bitcoin", "corruption"], ["bitcoin", "tools"], ["bitcoin", "cypherlogs"], ["cypherlogs", "rabbit"], ["suno", "anima"], ["anima", "face"], ["face", "therapy"], ["suno", "therapy"], ["teen", "maze"], ["entity", "face"], ["entity", "ai"]],CHECKED='2026-11-24';
+var SECTORS=[["aegis", "AEGIS and Security", "#FF4D6D", "Cryptography and protection", [0.12, 0.6]], ["knowledge", "Knowledge", "#5BC0FF", "Science, history, mind and power", [0.34, 0.36]], ["games", "Games and Worlds", "#B28DFF", "3D worlds and games", [0.74, 0.3]], ["kids", "Kids and Learning", "#FFD93D", "Play, language and focus", [0.84, 0.62]], ["music", "Music and Art", "#FF7AA8", "Songs, avatars and cover art", [0.6, 0.8]], ["tools", "Tools", "#4ADE80", "Hubs, tools and builders", [0.32, 0.8]], ["archive", "Archive", "#8892B0", "Offline or being repaired. Nothing removed.", [0.58, 0.54]]],PAGES=[["cypherlogs", "Cypherlogs", "aegis", "Cipher logs and cryptography notes.", "live"], ["ai", "AI Archive", "knowledge", "The complete AI intelligence reference.", "live"], ["anomaly", "Anomaly", "knowledge", "UAP archive: sourced timeline, science and sightings.", "live"], ["bitcoin", "Bitcoin", "knowledge", "Live Bitcoin intelligence and on-chain dashboard.", "live"], ["chemistry", "Chemistry", "knowledge", "Atoms, particles and molecules, interactive.", "live"], ["consciousness", "Consciousness", "knowledge", "Mind, perception and awareness explored.", "live"], ["corruption", "Corruption", "knowledge", "Documented global financial corruption.", "live"], ["dna", "DNA", "knowledge", "An interactive DNA helix laboratory.", "live"], ["global", "Global", "knowledge", "Who rules the world? Power, networks and money.", "live"], ["go", "Go", "knowledge", "The ancient game of Go and its intelligence.", "live"], ["io", "IO", "knowledge", "The signal beneath AVIDAA.", "live"], ["medic", "Medic", "knowledge", "A biology and medicine archive.", "live"], ["nexus", "Nexus", "knowledge", "A blueprint for living free after the old systems.", "live"], ["origins", "Origins", "knowledge", "The world record of human origins.", "live"], ["rabbit", "Rabbit", "knowledge", "A rabbit hole of deep dives, level by level.", "live"], ["seismic", "Seismic", "knowledge", "An earthquake and tsunami archive.", "live"], ["stoa", "Stoa", "knowledge", "Stoicism from the Painted Porch.", "live"], ["synapse", "Synapse", "knowledge", "Mind and mental science.", "live"], ["terra", "Terra", "knowledge", "A living library of Earth.", "live"], ["tortoise", "Tortoise", "knowledge", "The living archive of the tortoise.", "live"], ["wars", "Wars", "knowledge", "The archive of conflict.", "live"], ["watchlist", "Watchlist", "knowledge", "AI in fiction, catalogued.", "live"], ["mgs", "Metal Gear Intel", "knowledge", "The Metal Gear intelligence archive.", "live"], ["cosmos", "Cosmos", "knowledge", "An interactive solar system and sky dome.", "live"], ["earth", "Earth", "knowledge", "A global intelligence globe.", "live"], ["3dfights", "Fights", "games", "A boxing arena with real contact combat.", "live"], ["city", "City", "games", "Procedural residential districts in 3D.", "live"], ["metaverse", "Metaverse", "games", "A 3D world to explore with five modes.", "live"], ["openworld", "Open World", "games", "A big open world to walk through.", "live"], ["maze", "Maze", "games", "The paradox maze.", "live"], ["teen", "Teen Zone", "games", "Game night and AI lab for ages 15 and up.", "live"], ["kids", "Kids", "kids", "Galaxy Park: 165 games for children.", "live"], ["papiamentu", "Papiamentu", "kids", "Learn Papiamentu, a living Caribbean language.", "live"], ["focus", "Focus", "kids", "ADHD self-awareness and screening tools.", "live"], ["suno", "Suno", "music", "AVIDAA music on Suno.", "live"], ["anima", "Anima", "music", "Particle avatars: IO and Vida.", "live"], ["face", "Face", "music", "A living particle face.", "live"], ["therapy", "Therapy", "music", "Galactic therapy and cover art.", "live"], ["hub", "Hub", "tools", "The AVIDAA HUB: the human and AI knowledge hub.", "live"], ["tools", "Tools", "tools", "The Bench: everyday tools.", "live"], ["forge", "Forge", "tools", "Products and tools forged by AVIDAA.", "live"], ["entity", "Entity", "archive", "An AI entity avatar. It has a load error and is being repaired.", "fix"], ["cinema", "Cinema", "archive", "Not published right now. Repository kept.", "offline"], ["math", "Math", "archive", "Not published right now. Repository kept.", "offline"], ["registry", "Registry", "archive", "Not published right now. Repository kept.", "offline"], ["horizon", "Horizon", "archive", "Not published right now. Repository kept.", "offline"], ["zodiac", "Zodiac", "archive", "Not published right now. Repository kept.", "offline"], ["archive", "Archive Repo", "archive", "Not published right now. Repository kept.", "offline"], ["masterbook", "Masterbook", "archive", "Not published right now. Repository kept.", "offline"], ["breach", "Breach", "games", "Run and gun for 1 to 4 players with a boss fight. Keyboard, PS4 pads or touch.", "live"]],EDGES=[["breach", "3dfights"], ["hub", "tools"], ["hub", "forge"], ["tools", "forge"], ["tools", "focus"], ["hub", "io"], ["io", "suno"], ["kids", "teen"], ["kids", "papiamentu"], ["kids", "focus"], ["metaverse", "openworld"], ["metaverse", "city"], ["openworld", "city"], ["3dfights", "metaverse"], ["maze", "metaverse"], ["cosmos", "earth"], ["cosmos", "terra"], ["earth", "terra"], ["earth", "seismic"], ["seismic", "terra"], ["terra", "tortoise"], ["dna", "chemistry"], ["dna", "medic"], ["medic", "synapse"], ["synapse", "consciousness"], ["consciousness", "rabbit"], ["ai", "nexus"], ["ai", "consciousness"], ["nexus", "global"], ["global", "corruption"], ["corruption", "wars"], ["wars", "global"], ["anomaly", "origins"], ["origins", "go"], ["go", "tortoise"], ["stoa", "synapse"], ["mgs", "anomaly"], ["watchlist", "ai"], ["watchlist", "mgs"], ["bitcoin", "corruption"], ["bitcoin", "tools"], ["bitcoin", "cypherlogs"], ["cypherlogs", "rabbit"], ["suno", "anima"], ["anima", "face"], ["face", "therapy"], ["suno", "therapy"], ["teen", "maze"], ["entity", "face"], ["entity", "ai"]],CHECKED='2026-11-24';
 var SEC={},P={},starEls={},order=[];
 SECTORS.forEach(function(s){SEC[s[0]]={key:s[0],name:s[1],color:s[2],blurb:s[3],cx:s[4][0],cy:s[4][1],pages:[]};});
 PAGES.forEach(function(p){var o={id:p[0],name:p[1],sector:p[2],desc:p[3],status:p[4],url:p[4]==='offline'?'https://github.com/avidaa1/'+p[0]:'https://avidaa1.github.io/'+p[0]+'/'};P[o.id]=o;SEC[o.sector].pages.push(o);order.push(o);});
@@ -313,29 +318,62 @@ function spatial(id,d){
 }
 
 /* ---------- palette ---------- */
-var pal=$('pal'),pq=$('pq'),pl=$('pl'),sel=0,items=[],lastFocus=null;
-function openPal(){lastFocus=document.activeElement;pal.classList.add('show');pq.value='';fill('');pq.focus();}
-function closePal(){pal.classList.remove('show');if(lastFocus&&lastFocus.focus)lastFocus.focus();}
+/* Search stays open until Close, Esc or Back: no close on hover, blur or focus loss. Works with mouse, TV remote (D-pad), PS4 cursor and keyboard. */
+var pal=$('pal'),pq=$('pq'),pl=$('pl'),pclose=$('pclose'),sel=0,items=[],lastFocus=null,palHist=false;
+function palOpen(){return pal.classList.contains('show');}
+function rows(){return [].slice.call(pl.querySelectorAll('a.row'));}
+function openPal(){if(palOpen()){pq.focus();return;}lastFocus=document.activeElement;pal.classList.add('show');pq.value='';fill('');pq.focus();
+  try{history.pushState({avpal:1},'');palHist=true;}catch(e){palHist=false;}}
+function closePal(fromPop){if(!palOpen())return;pal.classList.remove('show');
+  if(palHist&&!fromPop){palHist=false;try{history.back();}catch(e){}}else palHist=false;
+  if(lastFocus&&lastFocus.focus)lastFocus.focus();}
+function setSel(i){sel=i;[].forEach.call(pl.children,function(li,k){li.setAttribute('aria-selected',k===i?'true':'false');});}
 function fill(q){
   q=q.trim().toLowerCase();
   items=order.map(function(p){var hay=(p.name+' '+p.desc+' '+SEC[p.sector].name).toLowerCase(),s=hay.indexOf(q);return {p:p,s:q?(p.name.toLowerCase().indexOf(q)===0?0:p.name.toLowerCase().indexOf(q)>=0?1:s>=0?2:9):1};}).filter(function(x){return x.s<9;}).sort(function(a,b){return a.s-b.s||(a.p.status==='live'?0:1)-(b.p.status==='live'?0:1)||a.p.name.localeCompare(b.p.name);}).slice(0,40);
   sel=0;pl.innerHTML='';
-  items.forEach(function(x,i){var li=document.createElement('li');li.setAttribute('role','option');li.setAttribute('aria-selected',i===0?'true':'false');
-    li.innerHTML='<span class="dot '+x.p.status+'"></span><span class="nm"></span><span class="ds"></span>';li.querySelector('.nm').textContent=x.p.name;li.querySelector('.ds').textContent=SEC[x.p.sector].name+' - '+x.p.desc;
-    li.onclick=function(){go(x.p);};pl.appendChild(li);});
-  if(!items.length){pl.innerHTML='<li role="option" aria-selected="false"><span class="nm">No page matches</span></li>';}
+  items.forEach(function(x,i){var li=document.createElement('li'),a=document.createElement('a'),d=document.createElement('span'),n=document.createElement('span'),t=document.createElement('span');
+    li.setAttribute('role','option');li.setAttribute('aria-selected',i===0?'true':'false');
+    a.className='row';a.href=x.p.url;d.className='dot '+x.p.status;n.className='nm';n.textContent=x.p.name;t.className='ds';t.textContent=SEC[x.p.sector].name+' - '+x.p.desc;
+    a.appendChild(d);a.appendChild(n);a.appendChild(t);li.appendChild(a);
+    a.addEventListener('mouseenter',function(){setSel(i);});a.addEventListener('focus',function(){setSel(i);});
+    pl.appendChild(li);});
+  if(!items.length){var e=document.createElement('li');e.className='none';e.setAttribute('role','option');e.setAttribute('aria-selected','false');e.textContent='No page matches';pl.appendChild(e);}
 }
-function move(d){if(!items.length)return;sel=(sel+d+items.length)%items.length;[].forEach.call(pl.children,function(li,i){li.setAttribute('aria-selected',i===sel?'true':'false');if(i===sel)li.scrollIntoView({block:'nearest'});});}
+function focusRow(i){var r=rows();if(!r.length)return false;i=(i+r.length)%r.length;r[i].focus();if(r[i].scrollIntoView)r[i].scrollIntoView({block:'nearest'});return true;}
 function go(p){location.href=p.url;}
 pq.addEventListener('input',function(){fill(pq.value);});
-pq.addEventListener('keydown',function(e){if(e.key==='ArrowDown'){e.preventDefault();move(1);}else if(e.key==='ArrowUp'){e.preventDefault();move(-1);}else if(e.key==='Enter'&&items[sel]){e.preventDefault();go(items[sel].p);}});
-pal.addEventListener('click',function(e){if(e.target===pal)closePal();});
+pq.addEventListener('keydown',function(e){
+  if(e.key==='ArrowDown'){e.preventDefault();focusRow(0);}
+  else if(e.key==='ArrowUp'){e.preventDefault();focusRow(-1);}
+  else if(e.key==='ArrowRight'&&pq.selectionStart===pq.value.length){e.preventDefault();pclose.focus();}
+  else if(e.key==='Enter'&&items[sel]){e.preventDefault();go(items[sel].p);}
+});
+pl.addEventListener('keydown',function(e){var r=rows(),i=r.indexOf(document.activeElement);
+  if(e.key==='ArrowDown'){e.preventDefault();if(i>=0&&i<r.length-1)focusRow(i+1);else pq.focus();}
+  else if(e.key==='ArrowUp'){e.preventDefault();if(i>0)focusRow(i-1);else pq.focus();}
+  else if(e.key==='ArrowRight'){e.preventDefault();pclose.focus();}
+  else if(e.key==='Home'){e.preventDefault();focusRow(0);}
+  else if(e.key==='End'){e.preventDefault();focusRow(-1);}
+  else if(e.key.length===1&&!e.ctrlKey&&!e.metaKey&&!e.altKey){pq.focus();}
+});
+pclose.addEventListener('click',function(){closePal();});
+pclose.addEventListener('keydown',function(e){if(e.key==='ArrowLeft'){e.preventDefault();if(!focusRow(sel))pq.focus();}else if(e.key==='ArrowDown'){e.preventDefault();focusRow(0);}});
+/* a click on the dimmed backdrop never closes the search (a TV cursor can land there by accident); it just returns focus to the box */
+pal.addEventListener('click',function(e){if(e.target===pal)pq.focus();});
+/* focus trap: Tab and focus loss keep focus inside the dialog; nothing here closes it */
+pal.addEventListener('keydown',function(e){if(e.key!=='Tab')return;var f=[pq,pclose].concat(rows());var i=f.indexOf(document.activeElement);
+  if(e.shiftKey){if(i<=0){e.preventDefault();f[f.length-1].focus();}}else if(i===f.length-1){e.preventDefault();f[0].focus();}});
+document.addEventListener('focusin',function(e){if(palOpen()&&!pal.contains(e.target))pq.focus();});
+pal.addEventListener('focusout',function(e){if(e.relatedTarget)return;setTimeout(function(){if(palOpen()&&!pal.contains(document.activeElement)){if(!focusRow(sel))pq.focus();}},0);});
+window.addEventListener('popstate',function(){if(palOpen()){palHist=false;closePal(true);}});
 $('btn-search').onclick=openPal;
 document.addEventListener('keydown',function(e){
   var k=e.key.toLowerCase();
-  if((e.ctrlKey||e.metaKey)&&k==='k'){e.preventDefault();pal.classList.contains('show')?closePal():openPal();}
-  else if(k==='/'&&!pal.classList.contains('show')&&!/INPUT|TEXTAREA/.test((document.activeElement||{}).tagName||'')){e.preventDefault();openPal();}
-  else if(k==='escape'){if(pal.classList.contains('show'))closePal();else if(prev.classList.contains('show')){var id=cur;pinned=null;hidePreview();if(id&&starEls[id])starEls[id].focus();}}
+  if((e.ctrlKey||e.metaKey)&&k==='k'){e.preventDefault();palOpen()?closePal():openPal();}
+  else if(k==='/'&&!palOpen()&&!/INPUT|TEXTAREA/.test((document.activeElement||{}).tagName||'')){e.preventDefault();openPal();}
+  else if(palOpen()&&(k==='escape'||k==='goback'||k==='browserback'||e.keyCode===10009||e.keyCode===461)){e.preventDefault();closePal();}
+  else if(k==='escape'){if(prev.classList.contains('show')){var id=cur;pinned=null;hidePreview();if(id&&starEls[id])starEls[id].focus();}}
 });
 
 /* ---------- card view (phones and tablets) ---------- */
@@ -413,9 +451,9 @@ function sched(){clearTimeout(t);t=setTimeout(fix,300);}
 function start(){fix();try{new MutationObserver(sched).observe(document.body,{childList:true,subtree:true});}catch(e){}}
 if(document.readyState==='complete')start();else addEventListener('load',start);
 addEventListener('resize',sched);})();</script><script id="av-shell-20261124">/* AVIDAA shell: shared header (or floating pill) + footer with the "Last updated" stamp. No outside calls, no tracking.
-   Template tokens are replaced when a page is built: AVIDAA Constellation --av-knowledge Knowledge 2026-11-24 06:35 */
+   Template tokens are replaced when a page is built: AVIDAA Constellation --av-knowledge Knowledge 2026-11-25 03:53 */
 (function(){
-  var NAME='AVIDAA Constellation',SECTOR='--av-knowledge',STAMP='2026-11-24 06:35',HOME='https://avidaa1.github.io/';
+  var NAME='AVIDAA Constellation',SECTOR='--av-knowledge',STAMP='2026-11-25 03:53',HOME='https://avidaa1.github.io/';
   var ARROW='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function build(){
     if(!document.body||document.querySelector('.av-footer'))return;
